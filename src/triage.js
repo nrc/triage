@@ -1,5 +1,5 @@
 // Copyright 2015 authors shown at
-// https://github.com/nick29581/rust-triage/graphs/contributors.
+// https://github.com/nrc/rust-triage/graphs/contributors.
 //
 // Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
 // http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
@@ -17,8 +17,7 @@ var mail_transporter = nodemailer.createTransport();
 var call = require('./call.js');
 var digest = require('./digest.js');
 
-var triage_regex = /\btriage:? ?(I-nominated|P-[a-zA-Z0-9\-]+)\b/;
-var nom_regex = /\btriage:? ?(I-nominated)\b/;
+var triage_regex = /\btriage:? ?(I-nominated|P-[a-zA-Z0-9\-]+)\b\s*(?:\(([a-zA-Z0-9\-\. ]*)\))?/;
 
 // Currently saved data (list of priority changes).
 var data = [];
@@ -138,19 +137,6 @@ function process_comment(body) {
         return "Nope, wrong repo"
     }
 
-    // Check the user.
-    if (config.triagers.indexOf(body.sender.login) == 0) {
-        data.push({
-            "action": "bad access",
-            "issue_number": body.issue.number,
-            "issue_title": body.issue.title,
-            "label": "",
-            "user": body.sender.login,
-            "comment": body.comment.body
-        });
-        return "No, user " + body.sender.login + " may not triage via comments";
-    }
-
     if (body.action == "created") {
         added_comment(body.issue.number,
                       body.issue.title,
@@ -170,6 +156,28 @@ function added_comment(issue_number, issue_title, comment, user, issue_labels) {
     var match = triage_regex.exec(comment);
     if (match && match[1]) {
         var priority = match[1];
+        var milesone = "";
+        if (match[2]) {
+            milestone = match[2];
+        }
+
+        var record = {
+            "action": "add",
+            "issue_number": issue_number,
+            "issue_title": issue_title,
+            "label": priority,
+            "milestone": milestone,
+            "user": user,
+            "comment": comment
+        };
+
+        // Check the user.
+        if (config.triagers.indexOf(user) == 0) {
+            record.action = "bad access";
+            record.comment += "\n[match: " + match.toString() + "]"
+            data.push(record);
+            return;
+        }
 
         // Set the priority on the issue and record the changes.
         //   remove any existing priorities.
@@ -182,16 +190,12 @@ function added_comment(issue_number, issue_title, comment, user, issue_labels) {
             }
         });
 
+        if (milestone) {
+            call.set_milestone(issue_number, milestone, config);
+        }
+
         // Add the new label, record in pending and data.
         pending[issue_number + priority] = true;
-        var record = {
-            "action": "add",
-            "issue_number": issue_number,
-            "issue_title": issue_title,
-            "label": priority,
-            "user": user,
-            "comment": comment
-        };
         data.push(record);
 
         call.add_label(issue_number, priority, config);
@@ -215,6 +219,7 @@ function added_label(issue_number, issue_title, label, user) {
         "issue_number": issue_number,
         "issue_title": issue_title,
         "label": label,
+        "milestone": "",
         "user": user,
         "comment": ""
     };
@@ -231,12 +236,14 @@ function removed_label(issue_number, issue_title, label, user) {
         "issue_number": issue_number,
         "issue_title": issue_title,
         "label": label,
+        "milestone": "",
         "user": user,
         "comment": ""
     };
 
     data.push(record);
 }
+
 
 // Check we have a hook from the right repo.
 function sanity_check(owner, repo) {

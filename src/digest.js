@@ -1,5 +1,5 @@
 // Copyright 2015 authors shown at
-// https://github.com/nick29581/rust-triage/graphs/contributors.
+// https://github.com/nrc/rust-triage/graphs/contributors.
 //
 // Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
 // http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
@@ -35,6 +35,7 @@ exports.make_digest = function(data, config) {
 
         result += emit_action(datum.action,
                               datum.label,
+                              datum.milestone,
                               datum.user,
                               datum.comment);
     });
@@ -57,6 +58,7 @@ exports.make_digest = function(data, config) {
 
         result += emit_action(datum.action,
                               datum.label,
+                              datum.milestone,
                               datum.user,
                               datum.comment,
                               "on issue " + issue_link(datum.issue_number, datum.issue_title));
@@ -88,7 +90,7 @@ function issue_link(number, title) {
     return result;    
 }
 
-function emit_action(action, label, user, comment, extra) {
+function emit_action(action, label, milestone, user, comment, extra) {
     var result = "<li>";
     if (action == "add") {
         result += "Added <b>";
@@ -101,7 +103,10 @@ function emit_action(action, label, user, comment, extra) {
     if (action == "add") {
         result += "</b>";
     }
-    result += " by @";
+    if (milestone && milestone != "") {
+        result += ". Set milestone: <b>" + milestone + "</b>"
+    }
+    result += ". By @";
     result += user;
     if (extra) {
         result += " ";
