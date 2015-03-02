@@ -71,6 +71,10 @@ function start_server() {
             var output = produce_digest();
             res.writeHead(200, {"Content-Type": "text/html", "Access-Control-Allow-Origin": "*"});
             res.end(output);
+        } else if (pathname == '/preview_digest') {
+            var output = preview_digest();
+            res.writeHead(200, {"Content-Type": "text/html", "Access-Control-Allow-Origin": "*"});
+            res.end(output);
         } else {
             res.writeHead(404, {"Content-Type": "text/plain"});
             res.write("404 Not Found\n");
@@ -266,6 +270,10 @@ function save_data() {
     // Rename temp file to data file.
     fs.renameSync(path.resolve(__dirname, temp_filename),
                   path.resolve(__dirname, data_filename));
+}
+
+function preview_digest() {
+    return digest.make_digest(data, config);;
 }
 
 function produce_digest() {
