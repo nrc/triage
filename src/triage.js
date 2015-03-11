@@ -164,7 +164,7 @@ function added_comment(issue_number, issue_title, comment, user, issue_labels) {
     var match = triage_regex.exec(comment);
     if (match && match[1]) {
         var priority = match[1];
-        var milesone = "";
+        var milestone = "";
         if (match[2]) {
             milestone = match[2];
         }
@@ -197,6 +197,8 @@ function added_comment(issue_number, issue_title, comment, user, issue_labels) {
                 // Don't need to record it, we'll get the GH hooks for it later.
             }
         });
+
+        // TODO wait until above is complete before continuing.
 
         if (milestone) {
             call.set_milestone(issue_number, milestone, config);
