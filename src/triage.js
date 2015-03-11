@@ -302,16 +302,19 @@ function produce_digest() {
     // Send an email
     var addresses_filename = path.resolve(__dirname, email_filename);
     var addresses = JSON.parse(fs.readFileSync(addresses_filename, 'utf8'));
-    var email = {
-        "from": "nrc@ncameron.org",
-        "to": addresses,
-        "subject": "Triage digest",
-        "html": html
-    };
-    mail_transporter.sendMail(email, function(err, info) {
-        console.log(err);
-        console.log(info);
-    });
+    for (var a in addresses) {
+        var addr = addresses[a];
+        var email = {
+            "from": "nrc@ncameron.org",
+            "to": addr,
+            "subject": "Triage digest",
+            "html": html
+        };
+        mail_transporter.sendMail(email, function(err, info) {
+            console.log(err);
+            console.log(info);
+        });
+    }
 
     // Return the html so it can be displayed in the browser.
     return html;
