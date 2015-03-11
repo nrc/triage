@@ -180,7 +180,7 @@ function added_comment(issue_number, issue_title, comment, user, issue_labels) {
         };
 
         // Check the user.
-        if (config.triagers.indexOf(user) == 0) {
+        if (config.triagers.indexOf(user) < 0) {
             record.action = "bad access";
             record.comment += "\n[match: " + match.toString() + "]"
             data.push(record);
