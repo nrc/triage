@@ -81,6 +81,7 @@ exports.set_milestone = function(issue_number, milestone, config) {
                      function(json) {
                         var number = search_for_milestone(json, milestone);
                         if (number >= 0) {
+                            console.log("Setting milestone: '" + milestone + "' => " + number + " for issue #" + issue_number);
                             var body = {
                                 "milestone": number
                             };

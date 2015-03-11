@@ -17,7 +17,7 @@ var mail_transporter = nodemailer.createTransport();
 var call = require('./call.js');
 var digest = require('./digest.js');
 
-var triage_regex = /\btriage:? ?(I-nominated|P-[a-zA-Z0-9\-]+)\b\s*(?:\(([a-zA-Z0-9\-\. ]*)\))?/;
+var triage_regex = /\btriage:? ?(I-nominated|P-[a-zA-Z0-9\-]+)\b *(?:\(([a-zA-Z0-9\-\. ]*)\))?/;
 
 // Currently saved data (list of priority changes).
 var data = [];
@@ -60,10 +60,10 @@ function start_server() {
                     } else if (event == "issue_comment") {
                         output = process_comment(json);
                     }
-                    res.writeHead(200, {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"});
+                    res.writeHead(200, {"Content-Type": "text/html", "Access-Control-Allow-Origin": "*"});
                     res.end("Success?\n\n" + output);
                 } catch (e) {
-                    res.writeHead(200, {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"});
+                    res.writeHead(200, {"Content-Type": "text/plain", "Access-Control-Allow-Origin": "*"});
                     res.end("Error: " + e);
                 }
             });
@@ -73,6 +73,10 @@ function start_server() {
             res.end(output);
         } else if (pathname == '/preview_digest') {
             var output = preview_digest();
+            res.writeHead(200, {"Content-Type": "text/html", "Access-Control-Allow-Origin": "*"});
+            res.end(output);
+        } else if (pathname == '/digest') {
+            var output = show_digest(parsed_url.query['date']);
             res.writeHead(200, {"Content-Type": "text/html", "Access-Control-Allow-Origin": "*"});
             res.end(output);
         } else {
@@ -282,9 +286,14 @@ function produce_digest() {
 
     var html = digest.make_digest(cur_data, config);
 
-    // Save the digest to a file.
     var date = new Date();
-    var digest_path = path.resolve(__dirname, "digests", date.toISOString().replace(/[:\.]/g, "-") + ".html");
+    var date_str = date.toISOString().replace(/[:\.]/g, "-");
+
+    // Add a permalink
+    html += "\n<p><a href=\"http://www.ncameron.org/triage/digest?date=" + date_str + "\">Permalink to this digest</a></p>"
+
+    // Save the digest to a file.
+    var digest_path = path.resolve(__dirname, "digests", date_str + ".html");
     fs.writeFileSync(digest_path, html);
 
     // Save the now empty data to file.
@@ -306,4 +315,14 @@ function produce_digest() {
 
     // Return the html so it can be displayed in the browser.
     return html;
+}
+
+function show_digest(digest_date) {
+    var digest_path = path.resolve(__dirname, "digests", digest_date + ".html");
+    var body = fs.readFileSync(digest_path, 'utf8');
+
+    var result = "<html>\n<head>\n<title>Triage digest: " + digest_date + "</title>\n</head>\n<body>\n";
+    result += body;
+    result += "\n</body>\n</html>\n";
+    return result;
 }
