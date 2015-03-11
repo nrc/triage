@@ -7,6 +7,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+var async = require('async');
 var path = require("path");
 var fs = require('fs');
 var http = require('http');
@@ -189,26 +190,31 @@ function added_comment(issue_number, issue_title, comment, user, issue_labels) {
 
         // Set the priority on the issue and record the changes.
         //   remove any existing priorities.
-        issue_labels.map(function(label) {
+        async.map(issue_labels, function(label, callback) {
             if (is_priority(label.name)) {
                 // Send request to GH to remove label.
-                call.remove_label(issue_number, label.name, config);
+                call.remove_label(issue_number, label.name, config, callback);
 
                 // Don't need to record it, we'll get the GH hooks for it later.
             }
+        }, function(err, results) {
+            if (err) {
+                console.log("Error removing labels:", err);
+            }
+
+            // Once we're done removing labels, carry on setting the milestone
+            // and so forth.
+
+            if (milestone) {
+                call.set_milestone(issue_number, milestone, config);
+            }
+
+            // Add the new label, record in pending and data.
+            pending[issue_number + priority] = true;
+            data.push(record);
+
+            call.add_label(issue_number, priority, config);
         });
-
-        // TODO wait until above is complete before continuing.
-
-        if (milestone) {
-            call.set_milestone(issue_number, milestone, config);
-        }
-
-        // Add the new label, record in pending and data.
-        pending[issue_number + priority] = true;
-        data.push(record);
-
-        call.add_label(issue_number, priority, config);
     }
 }
 

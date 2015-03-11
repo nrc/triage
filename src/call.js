@@ -46,9 +46,13 @@ exports.api_call = function(path, f, body, config, method) {
     request.end();
 }
 
-exports.remove_label = function(issue_number, label, config) {
+exports.remove_label = function(issue_number, label, config, callback) {
     exports.api_call('/repos/' + config.owner + '/' + config.repo + '/issues/' + issue_number + '/labels/' + label,
-                     function(json) {},
+                     function(json) {
+                        if (callback) {
+                            callback(null, json);
+                        }
+                     },
                      {},
                      config,
                      'DELETE');
@@ -81,7 +85,6 @@ exports.set_milestone = function(issue_number, milestone, config) {
                      function(json) {
                         var number = search_for_milestone(json, milestone);
                         if (number >= 0) {
-                            console.log("Setting milestone: '" + milestone + "' => " + number + " for issue #" + issue_number);
                             var body = {
                                 "milestone": number
                             };
