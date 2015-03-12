@@ -69,13 +69,15 @@ function start_server() {
                 }
             });
         } else if (pathname == '/mail_digest') {
-            var output = produce_digest();
-            res.writeHead(200, {"Content-Type": "text/html", "Access-Control-Allow-Origin": "*"});
-            res.end(output);
+            produce_digest(function(output) {
+                res.writeHead(200, {"Content-Type": "text/html", "Access-Control-Allow-Origin": "*"});
+                res.end(output);
+            });
         } else if (pathname == '/preview_digest') {
-            var output = preview_digest();
-            res.writeHead(200, {"Content-Type": "text/html", "Access-Control-Allow-Origin": "*"});
-            res.end(output);
+            preview_digest(function(output) {
+                res.writeHead(200, {"Content-Type": "text/html", "Access-Control-Allow-Origin": "*"});
+                res.end(output);
+            });
         } else if (pathname == '/digest') {
             var output = show_digest(parsed_url.query['date']);
             res.writeHead(200, {"Content-Type": "text/html", "Access-Control-Allow-Origin": "*"});
@@ -284,48 +286,48 @@ function save_data() {
                   path.resolve(__dirname, data_filename));
 }
 
-function preview_digest() {
-    return digest.make_digest(data, config);;
+function preview_digest(callback) {
+    digest.make_digest(data, config, callback);
 }
 
-function produce_digest() {
+function produce_digest(callback) {
     var cur_data = data;
     data = [];
 
-    var html = digest.make_digest(cur_data, config);
+    digest.make_digest(cur_data, config, function(html) {
+        var date = new Date();
+        var date_str = date.toISOString().replace(/[:\.]/g, "-");
 
-    var date = new Date();
-    var date_str = date.toISOString().replace(/[:\.]/g, "-");
+        // Add a permalink
+        html += "\n<p><a href=\"http://www.ncameron.org/triage/digest?date=" + date_str + "\">Permalink to this digest</a></p>"
 
-    // Add a permalink
-    html += "\n<p><a href=\"http://www.ncameron.org/triage/digest?date=" + date_str + "\">Permalink to this digest</a></p>"
+        // Save the digest to a file.
+        var digest_path = path.resolve(__dirname, "digests", date_str + ".html");
+        fs.writeFileSync(digest_path, html);
 
-    // Save the digest to a file.
-    var digest_path = path.resolve(__dirname, "digests", date_str + ".html");
-    fs.writeFileSync(digest_path, html);
+        // Save the now empty data to file.
+        save_data();
 
-    // Save the now empty data to file.
-    save_data();
+        // Send an email
+        var addresses_filename = path.resolve(__dirname, email_filename);
+        var addresses = JSON.parse(fs.readFileSync(addresses_filename, 'utf8'));
+        for (var a in addresses) {
+            var addr = addresses[a];
+            var email = {
+                "from": "nrc@ncameron.org",
+                "to": addr,
+                "subject": "Triage digest",
+                "html": html
+            };
+            mail_transporter.sendMail(email, function(err, info) {
+                console.log(err);
+                console.log(info);
+            });
+        }
 
-    // Send an email
-    var addresses_filename = path.resolve(__dirname, email_filename);
-    var addresses = JSON.parse(fs.readFileSync(addresses_filename, 'utf8'));
-    for (var a in addresses) {
-        var addr = addresses[a];
-        var email = {
-            "from": "nrc@ncameron.org",
-            "to": addr,
-            "subject": "Triage digest",
-            "html": html
-        };
-        mail_transporter.sendMail(email, function(err, info) {
-            console.log(err);
-            console.log(info);
-        });
-    }
-
-    // Return the html so it can be displayed in the browser.
-    return html;
+        // Return the html so it can be displayed in the browser.
+        callback(html);
+    });
 }
 
 function show_digest(digest_date) {

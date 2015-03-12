@@ -9,65 +9,99 @@
 
 // Code for producing the digest email.
 
+var call = require('./call.js');
+
 var issue_url = "";
 
-exports.make_digest = function(data, config) {
+exports.make_digest = function(data, config, callback) {
     data = sort_data(data);
     issue_url = "https://github.com/" + config.owner + "/" + config.repo + "/issues/";
 
-    var result = "";
-    var cur_issue = "0";
-    var needs_close = false;
-    data.map(function(datum) {
-        if (datum.action != "add" && datum.action != "remove") {
-            // Skip admin issues, we'll get to them later.
-            return;
+    // Get a list of nominated issues and put them first in the email
+    call.issues_for_label("I-nominated", config, function(err, json) {
+        if (err) {
+            console.log("Error fetching nominated issues:", err);
         }
-        if (datum.issue_number != cur_issue) {
-            if (needs_close) {
-                result += "</ul>\n"
+
+        var result = "";
+        result += "<h2>Nominated issues</h2>\n\n";
+        var skip_list = [];
+
+        // Nominated issues.
+        for (var i in json) {
+            var issue = json[i];
+            var number = issue['number'];
+            result += emit_issue(number, issue['title']);
+            var related = data.filter(function(i) { return i.issue_number == number; });
+            if (related.length > 0) {
+                result += "<ul>\n"
+                related.map(function(datum) {
+                    if (is_admin_issue(datum)) {
+                        // Skip admin issues, we'll get to them later.
+                        return;
+                    }
+
+                    result += emit_action(datum);
+                });
+                result += "</ul>\n"                
             }
-            cur_issue = datum.issue_number;
-            result += emit_issue(cur_issue, datum.issue_title);
-            result += "<ul>\n"
-            needs_close = true;
+
+            skip_list.push(number);
         }
 
-        result += emit_action(datum.action,
-                              datum.label,
-                              datum.milestone,
-                              datum.user,
-                              datum.comment);
+        result += "<h2>Remaining issues</h2>\n\n";
+
+        // Rest of the email
+        var cur_issue = "0";
+        var needs_close = false;
+        data.map(function(datum) {
+            if (skip_list.indexOf(datum.issue_number) >= 0 ||
+                is_admin_issue(datum)) {
+                // Skip nominated issues (we did them earlier) and admin issues, we'll get to them later.
+                return;
+            }
+            if (datum.issue_number != cur_issue) {
+                if (needs_close) {
+                    result += "</ul>\n"
+                }
+                cur_issue = datum.issue_number;
+                result += emit_issue(cur_issue, datum.issue_title);
+                result += "<ul>\n"
+                needs_close = true;
+            }
+
+            result += emit_action(datum);
+        });
+        if (needs_close) {
+            result += "</ul>\n"
+        }
+
+        // Admin issues.
+        var make_admin_title = true;
+        data.map(function(datum) {
+            if (!is_admin_issue(datum)) {
+                // Skip non-admin issues.
+                return;
+            }
+
+            if (make_admin_title) {
+                make_admin_title = false;
+                result += "\n<h2>Admin issues</h2>\n\n<ul>\n";
+            }
+
+            result += emit_action(datum,
+                                  "on issue " + issue_link(datum.issue_number, datum.issue_title));
+        });
+        if (!make_admin_title) {
+            result += "</ul>\n"
+        }
+
+        callback(result);
     });
-    if (needs_close) {
-        result += "</ul>\n"
-    }
+}
 
-    // Admin issues.
-    var make_admin_title = true;
-    data.map(function(datum) {
-        if (datum.action == "add" || datum.action == "remove") {
-            // Skip non-admin issues.
-            return;
-        }
-
-        if (make_admin_title) {
-            make_admin_title = false;
-            result += "\n<h2>Admin issues</h2>\n\n<ul>\n";
-        }
-
-        result += emit_action(datum.action,
-                              datum.label,
-                              datum.milestone,
-                              datum.user,
-                              datum.comment,
-                              "on issue " + issue_link(datum.issue_number, datum.issue_title));
-    });
-    if (!make_admin_title) {
-        result += "</ul>\n"
-    }
-
-    return result;
+function is_admin_issue(datum) {
+    return datum.action != "add" && datum.action != "remove";
 }
 
 function emit_issue(number, title) {
@@ -90,7 +124,13 @@ function issue_link(number, title) {
     return result;    
 }
 
-function emit_action(action, label, milestone, user, comment, extra) {
+function emit_action(datum, extra) {
+    var action = datum.action;
+    var label = datum.label;
+    var milestone = datum.milestone;
+    var user = datum.user;
+    var comment = datum.comment;
+
     var result = "<li>";
     if (action == "add") {
         result += "Added <b>";
