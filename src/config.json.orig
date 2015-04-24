@@ -1,6 +1,8 @@
 {
     "user": "",
     "token": "",
+    "gmail user": "",
+    "gmail password": "",
     "owner": "",
     "repo": "",
     "triagers": []

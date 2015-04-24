@@ -13,7 +13,6 @@ var fs = require('fs');
 var http = require('http');
 var url = require('url');
 var nodemailer = require('nodemailer');
-var mail_transporter = nodemailer.createTransport();
 
 var call = require('./call.js');
 var digest = require('./digest.js');
@@ -325,6 +324,15 @@ function produce_digest(callback) {
         // Send an email
         var addresses_filename = path.resolve(__dirname, email_filename);
         var addresses = JSON.parse(fs.readFileSync(addresses_filename, 'utf8'));
+
+        var mail_transporter = nodemailer.createTransport({service: "Gmail",
+                                                           auth: {
+                                                             user: config["gmail user"],
+                                                             pass: config["gmail password"]
+                                                           }
+                                                          });
+
+
         for (var a in addresses) {
             var addr = addresses[a];
             var email = {
@@ -333,6 +341,7 @@ function produce_digest(callback) {
                 "subject": "Triage digest",
                 "html": html
             };
+
             mail_transporter.sendMail(email, function(err, info) {
                 console.log("Sending to:", addr);
                 console.log(err);
@@ -340,10 +349,13 @@ function produce_digest(callback) {
             });
         }
 
+        mail_transporter.close();
+
         // Return the html so it can be displayed in the browser.
         callback(html);
     });
 }
+
 
 function show_digest(digest_date) {
     try {
