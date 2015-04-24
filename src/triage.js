@@ -166,6 +166,7 @@ function process_comment(body) {
 function added_comment(issue_number, issue_title, comment, user, issue_labels) {
     var match = triage_regex.exec(comment);
     if (match && match[1]) {
+        console.log("Matched comment:", comment);
         var priority = match[1];
         var milestone = "";
         if (match[2]) {
@@ -184,6 +185,7 @@ function added_comment(issue_number, issue_title, comment, user, issue_labels) {
 
         // Check the user.
         if (config.triagers.indexOf(user) < 0) {
+            console.log("bad access by", user);
             record.action = "bad access";
             record.comment += "\n[match: " + match.toString() + "]"
             data.push(record);
@@ -193,16 +195,20 @@ function added_comment(issue_number, issue_title, comment, user, issue_labels) {
         // Set the priority on the issue and record the changes.
         //   remove any existing priorities.
         async.map(issue_labels, function(label, callback) {
+            console.log("maybe removing label");
             if (is_priority(label.name)) {
                 // Send request to GH to remove label.
                 call.remove_label(issue_number, label.name, config, callback);
 
                 // Don't need to record it, we'll get the GH hooks for it later.
+            } else {
+                callback(null, null);
             }
         }, function(err, results) {
             if (err) {
                 console.log("Error removing labels:", err);
             }
+            console.log("Set new priority", priority, milestone);
 
             // Once we're done removing labels, carry on setting the milestone
             // and so forth.
@@ -320,6 +326,7 @@ function produce_digest(callback) {
                 "html": html
             };
             mail_transporter.sendMail(email, function(err, info) {
+                console.log("Sending to:", addr);
                 console.log(err);
                 console.log(info);
             });
@@ -331,11 +338,17 @@ function produce_digest(callback) {
 }
 
 function show_digest(digest_date) {
-    var digest_path = path.resolve(__dirname, "digests", digest_date + ".html");
-    var body = fs.readFileSync(digest_path, 'utf8');
+    try {
+        var digest_path = path.resolve(__dirname, "digests", digest_date + ".html");
+        var body = fs.readFileSync(digest_path, 'utf8');
 
-    var result = "<html>\n<head>\n<title>Triage digest: " + digest_date + "</title>\n</head>\n<body>\n";
-    result += body;
-    result += "\n</body>\n</html>\n";
-    return result;
+        var result = "<html>\n<head>\n<title>Triage digest: " + digest_date + "</title>\n</head>\n<body>\n";
+        result += body;
+        result += "\n</body>\n</html>\n";
+        return result;
+    } catch (err) {
+        console.log("Error making digest for", digest_date);
+        console.log(err);
+        return "Error. Bad date?"
+    }
 }
