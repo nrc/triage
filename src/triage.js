@@ -82,6 +82,10 @@ function start_server() {
             var output = show_digest(parsed_url.query['date']);
             res.writeHead(200, {"Content-Type": "text/html", "Access-Control-Allow-Origin": "*"});
             res.end(output);
+        } else if (pathname == '/list') {
+            var output = list_digests(parsed_url.query['date']);
+            res.writeHead(200, {"Content-Type": "text/html", "Access-Control-Allow-Origin": "*"});
+            res.end(output);
         } else {
             res.writeHead(404, {"Content-Type": "text/plain"});
             res.write("404 Not Found\n");
@@ -345,6 +349,28 @@ function show_digest(digest_date) {
         var result = "<html>\n<head>\n<title>Triage digest: " + digest_date + "</title>\n</head>\n<body>\n";
         result += body;
         result += "\n</body>\n</html>\n";
+        return result;
+    } catch (err) {
+        console.log("Error making digest for", digest_date);
+        console.log(err);
+        return "Error. Bad date?"
+    }
+}
+
+function list_digests() {
+    try {
+        var dir_path = path.resolve(__dirname, "digests");
+        var files = fs.readdirSync(dir_path);
+        var body = "<ul>\n";
+        for (i in files) {
+            var file_name = files[i];
+            var date = file_name.substring(0, file_name.length - 5);
+            body += "<li><a href=\"http://www.ncameron.org/triage/digest?date=" + date + "\">" + date + "</a></li>\n";
+        }
+
+        var result = "<html>\n<head>\n<title>Triage digests" + "</title>\n</head>\n<body>\n";
+        result += body;
+        result += "</ul>\n</body>\n</html>\n";
         return result;
     } catch (err) {
         console.log("Error making digest for", digest_date);
