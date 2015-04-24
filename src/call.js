@@ -67,12 +67,12 @@ exports.add_label = function(issue_number, label, config) {
                      'POST');
 }
 
-exports.issues_for_label = function(label, config, callback) {
+exports.issues_for_label = function(label, config, state, callback) {
     // FIXME: It's possible there are more issues than whatever GH uses for a limit,
     // in that case we need to follow the next URL to get the next set of issues
     // until we're got them all. We shouldn't even have enough nominated issues
     // for this to be a problem though.
-    exports.api_call('/repos/' + config.owner + '/' + config.repo + '/issues?labels=' + label,
+    exports.api_call('/repos/' + config.owner + '/' + config.repo + '/issues?labels=' + label + '&state=' + state,
                      function(json) {
                         if (callback) {
                             // The GH API lets you do this using direction=asc, but it
