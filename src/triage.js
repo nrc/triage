@@ -198,14 +198,18 @@ function added_comment(issue_number, issue_title, comment, user, issue_labels) {
         // Set the priority on the issue and record the changes.
         //   remove any existing priorities.
         async.map(issue_labels, function(label, callback) {
-            console.log("maybe removing label");
-            if (is_priority(label.name)) {
-                // Send request to GH to remove label.
-                call.remove_label(issue_number, label.name, config, callback);
+            // The is_prioirty check is so that checking the beta- status does
+            // not affect the priority.
+            if (is_priority(priority)) {
+                console.log("maybe removing label");
+                if (is_priority(label.name)) {
+                    // Send request to GH to remove label.
+                    call.remove_label(issue_number, label.name, config, callback);
 
-                // Don't need to record it, we'll get the GH hooks for it later.
-            } else {
-                callback(null, null);
+                    // Don't need to record it, we'll get the GH hooks for it later.
+                } else {
+                    callback(null, null);
+                }
             }
         }, function(err, results) {
             if (err) {
@@ -230,7 +234,7 @@ function added_comment(issue_number, issue_title, comment, user, issue_labels) {
 }
 
 function added_label(issue_number, issue_title, label, user) {
-    if (!is_priority(label)) {
+    if (!is_priority(label) && !is_beta(label)) {
         return;
     }
 
@@ -254,7 +258,7 @@ function added_label(issue_number, issue_title, label, user) {
 }
 
 function removed_label(issue_number, issue_title, label, user) {
-    if (!is_priority(label)) {
+    if (!is_priority(label) && !is_beta(label)) {
         return;
     }
 
@@ -281,8 +285,11 @@ function sanity_check(owner, repo) {
 function is_priority(label) {
     return label.indexOf("P-") == 0 ||
            label == "I-nominated" ||
-           label == "I-needs-decision" ||
-           label == "beta-accepted" ||
+           label == "I-needs-decision";
+}
+
+function is_beta(label) {
+    return label == "beta-accepted" ||
            label == "beta-nominated";
 }
 
