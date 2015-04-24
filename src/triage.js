@@ -18,7 +18,7 @@ var mail_transporter = nodemailer.createTransport();
 var call = require('./call.js');
 var digest = require('./digest.js');
 
-var triage_regex = /\btriage:? ?(I-nominated|P-[a-zA-Z0-9\-]+)\b *(?:\(([a-zA-Z0-9\-\. ]*)\))?/;
+var triage_regex = /\btriage:? ?(I-nominated|I-needs-decision|P-[a-zA-Z0-9\-]+)\b *(?:\(([a-zA-Z0-9\-\. ]*)\))?/;
 
 // Currently saved data (list of priority changes).
 var data = [];
@@ -280,7 +280,7 @@ function sanity_check(owner, repo) {
 
 // Does label represent a priority?
 function is_priority(label) {
-    return label.indexOf("P-") == 0 || label == "I-nominated";
+    return label.indexOf("P-") == 0 || label == "I-nominated" || label == "I-needs-decision";
 }
 
 function save_data() {
