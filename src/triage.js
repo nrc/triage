@@ -44,7 +44,12 @@ function start_server() {
     http.createServer(function (req, res) {
         var parsed_url = url.parse(req.url, true);
         var pathname = parsed_url.pathname;
-        if (pathname == '/data') {
+        if (!pathname || pathname == '' || pathname == '/') {
+            // Display the most recent digest.
+            var output = show_digest();
+            res.writeHead(200, {"Content-Type": "text/html", "Access-Control-Allow-Origin": "*"});
+            res.end(output);
+        } else if (pathname == '/data') {
             // Dump data as JSON, primarily for debugging.
             res.writeHead(200, {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"});
             res.end(JSON.stringify(data));
@@ -328,9 +333,11 @@ function produce_digest(callback) {
         // Save the now empty data to file.
         save_data();
 
-        // Send an email
-        var addresses_filename = path.resolve(__dirname, email_filename);
-        var addresses = JSON.parse(fs.readFileSync(addresses_filename, 'utf8'));
+        // Send an email to discuss.
+
+        // Don't send an email to the list, it just gets spam filtered.
+        // var addresses_filename = path.resolve(__dirname, email_filename);
+        // var addresses = JSON.parse(fs.readFileSync(addresses_filename, 'utf8'));
 
         var mail_transporter = nodemailer.createTransport({service: "Gmail",
                                                            auth: {
@@ -340,21 +347,20 @@ function produce_digest(callback) {
                                                           });
 
 
-        for (var a in addresses) {
-            var addr = addresses[a];
-            var email = {
-                "from": "nrc@ncameron.org",
-                "to": addr,
-                "subject": "Triage digest",
-                "html": html
-            };
+        // for (var a in addresses) {
+        var addr = "";
+        var email = {
+            "from": "nick@ncameron.org",
+            "to": "internals@rust-lang.org",
+            "subject": "Triage digest: " + date.toDateString(),
+            "html": html
+        };
 
-            mail_transporter.sendMail(email, function(err, info) {
-                console.log("Sending to:", addr);
-                console.log(err);
-                console.log(info);
-            });
-        }
+        mail_transporter.sendMail(email, function(err, info) {
+            console.log("Sending to:", addr);
+            console.log(err);
+            console.log(info);
+        });
 
         mail_transporter.close();
 
@@ -366,7 +372,33 @@ function produce_digest(callback) {
 
 function show_digest(digest_date) {
     try {
-        var digest_path = path.resolve(__dirname, "digests", digest_date + ".html");
+        var digest_path = null;
+        if (digest_path) {
+            digest_path = path.resolve(__dirname, "digests", digest_date + ".html");
+        } else {
+            // Display the most recent digest.
+            var dir_path = path.resolve(__dirname, "digests");
+            var files = fs.readdirSync(dir_path);
+            var most_recent = null;
+            var most_recent_file = null;
+            for (i in files) {
+                var file_name = files[i];
+                var file_path = path.resolve(__dirname, "digests", file_name);
+                var stats = fs.statSync(file_path);
+                var date = stats.mtime;
+                if (!most_recent || most_recent < date) {
+                    most_recent = date;
+                    most_recent_file = file_name;
+                }
+            }
+            if (!most_recent_file) {
+                console.log("Error Couldn't find current digest");
+                return "Error. Couldn't find current digest";
+            }
+            digest_path = path.resolve(__dirname, "digests", file_name);
+            digest_date = most_recent.toDateString();
+        }
+
         var body = fs.readFileSync(digest_path, 'utf8');
 
         var result = "<html>\n<head>\n<title>Triage digest: " + digest_date + "</title>\n</head>\n<body>\n";
@@ -376,7 +408,7 @@ function show_digest(digest_date) {
     } catch (err) {
         console.log("Error making digest for", digest_date);
         console.log(err);
-        return "Error. Bad date?"
+        return "Error. Bad date?";
     }
 }
 
