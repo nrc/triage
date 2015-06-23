@@ -373,7 +373,7 @@ function produce_digest(callback) {
 function show_digest(digest_date) {
     try {
         var digest_path = null;
-        if (digest_path) {
+        if (digest_date) {
             digest_path = path.resolve(__dirname, "digests", digest_date + ".html");
         } else {
             // Display the most recent digest.
